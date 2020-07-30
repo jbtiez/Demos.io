@@ -1,1 +1,367 @@
-<h1> Hello World </h1>
+<head>
+    <meta charset="UTF-8">
+    <title>Data Visualization Final Project</title>
+	
+	<style>
+		/*Graphic Styles*/
+		body {
+			text-align: center;
+		}
+		circle {
+			stroke: gray;
+			fill: blue;
+			opacity: 0.75;
+		}
+        #tooltip {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: auto;
+            visibility: hidden;
+            font-size: 14px;
+            background-color: beige;
+            padding: 10px;
+            box-shadow: 3px 3px 3px #cccccc;
+            border-radius: 3px;
+            text-align: left;
+        }
+         span {
+            width: auto;
+            font-size: 14px;
+            padding: 5px;
+            color:black;
+        }
+        
+        #title {
+            font-size:40px;
+            font-family: Arial, Helvetica, sans-serif;
+            margin-bottom: 0px;
+			padding-bottom: 10px;
+            top: 2px;
+            left: 380px;
+            position: absolute
+
+        }
+        
+        #subtitle {
+            font-size:20px;
+            font-family: Arial, Helvetica, sans-serif;
+            margin-bottom: 10px;
+			padding-bottom: 10px;
+            padding-top: 2px;
+            margin-top:0px;
+            top: 90px;
+            left: 50px;
+            position: absolute
+
+
+        }
+
+        #notes {
+            font-size:10px;
+            font-family: Arial, Helvetica, sans-serif;
+            width:1000px;
+            left: 300px;
+            top:1140px;
+            position:absolute;
+            
+        }
+        #size {
+            font-size:14px}
+
+		/* Use style classes to set colors by fuel type */
+        .gender {fill:#ff9f1c;background-color:#ff9f1c;}      /* green */
+        .campaign {fill:#104afc;background-color:#104afc; color:white}        /* blue */
+        .media {fill:#009688;background-color:#009688; color:white}      /* cyan */
+        .negative {fill:#fb252c; background-color:#fb252c}         /* red */
+        .people {fill:#8a03f4;background-color:#8a03f4;color:white}        /* pink */
+        .positive {fill:#00ff00;background-color:#24f356}       /* green */
+        .other {fill:#f7ff00;background-color:#f7ff00}    /* black */
+        
+         #key {
+         top: 200px;
+         left: 10px;
+         width:230px;
+         height:400px;
+         position: absolute;
+        }
+        
+        #canvas {
+         top: 150px;
+         left: 300px;
+         position: absolute;
+        }
+	</style>
+	
+    
+    
+    
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+	<script>
+		// variables and scripts
+		var data;	// to hold the data
+        var circles;    // to hold all of the circle objects
+		
+		// function to get the data from file
+		function getData() {
+			d3.csv("dataviz.csv").then(function(d) {
+				data = d;
+				draw();
+			});
+        };
+		
+		// declare some base variables
+		var drawArea, drawAreaWidth;
+		var baseline;
+		var hScale, vScale;
+        var minVal, maxVal, Scale;
+        var targetSVG = d3.select("#canvas")
+        var circle = targetSVG.selectAll("circle");
+        
+        
+		function draw() {
+			// setup some things
+			drawArea = d3.select("#canvas");
+			drawAreaWidth = +drawArea.attr("width");
+			drawAreaHeight = +drawArea.attr("height");
+			
+			baseline = drawAreaHeight - 125;
+            hor_baseline = 75
+			hScale = 400;
+			vScale = 400;
+            circle_scale = 30;
+                        
+			// now draw the circles
+			circles = drawArea.selectAll("circle")
+				.data(data);                            // join
+            
+			circles.enter().append("circle")
+                .merge(circles)                         // merge
+					.attr("cx",function(d) {
+                        menVal = d["pm_adj"];
+						screenX = hor_baseline + (menVal * hScale);
+                        return screenX;
+					})
+					.attr("cy",function(d) {
+                        womenVal = d["pf_adj"];
+						screenY = baseline - (womenVal * vScale);
+						return screenY;
+					})
+					.attr("r", function(d) {
+                        freqval = d["overall_freq"];
+				        circle_r = (freqval * circle_scale);
+						return circle_r;
+					})
+                    .attr("class", function(d) {
+						return d["class"]})
+                    .on("mouseover", highlight)
+                    .on("mouseout",unhighlight);
+            
+            circles.exit().remove();
+            
+            // creating the color key
+            var wordtypes = d3.select("#wordtype").selectAll("span")
+            .data(d3.map(data, function(d) {return d["class"];}).keys());
+        
+            wordtypes.enter().append("span")
+            .merge(wordtypes)
+            .text(function(d) {return d + " ";})
+            .attr("class", function(d) {return d;})
+            .on("click", function(d) {myfilter("class",d)})
+            .on("mouseover",mouseover_spans);
+        }
+        
+        // functions
+            
+            // function to calculate differences between values
+            function differences(val) {console.log(val);
+            adj_diff = val/100000;
+            if(val >= 0){
+                myfilter_male("diff",adj_diff);}
+            if(val < 0){
+                myfilter_female("diff",adj_diff)};
+            }
+            
+            // function found on stack overflow to bring something to the front -- necessary so my filtered circles are on top
+            d3.selection.prototype.moveToFront = function() {
+                    return this.each(function(){
+                    this.parentNode.appendChild(this);});
+            };
+        
+            // function to highlight circles, expand their size, and have a scrollover box
+            function highlight(d) {
+            var circle = d3.select(this)
+            .attr("r",function(d) {
+                        freqval = d["overall_freq"];
+				        circle_r = (freqval * circle_scale*1.3);
+						return circle_r;}) 
+            
+            d3.select("#wordname").text(d["term_str"])
+            d3.select("#fvalue").text("Female Frequency: " + d["p_female"])
+            d3.select("#mvalue").text("Male Frequency: " + d["p_male"])
+                
+                
+            d3.select("#tooltip")
+                .style("top",d3.event.pageY + 5 + "px")          
+                .style("left",d3.event.pageX + 5 + "px")
+                .style("visibility","visible");
+        }
+        
+        // function to undo the highlighting
+            function unhighlight() {
+                d3.select("#tooltip")
+                .style("visibility","hidden");
+            
+            var circle = d3.select(this)
+            .attr("r",function(d) {
+                        freqval = d["overall_freq"];
+				        circle_r = (freqval * circle_scale);
+						return circle_r;}) 
+            }
+            
+        // function to dim all the circles
+            function dimAll() {
+                d3.selectAll("circle")
+                    .style("opacity",.04)
+                    .on("mouseover","")
+            }
+        // function to show all the circle
+            function showAll() {
+                d3.selectAll("circle")
+                    .style("opacity","")
+                    .on("mouseover",highlight);
+            }
+        
+        // filter for class
+            function myfilter(field, value) {
+                dimAll();
+                var circles = d3.selectAll("circle");
+                circles.filter(function(d) {return d[field] == value})
+                    .style("opacity","")
+                    .moveToFront()
+                    .on("mouseover",highlight);
+            }
+        
+        // filter for male word frequency
+            function myfilter_male(field, value) {
+                dimAll();
+                var circles = d3.selectAll("circle");
+                circles.filter(function(d) {return d[field] >= value})
+                    .style("opacity","")
+                    .on("mouseover",highlight);
+            }
+            
+        // filter for female word frequency (needs to be done separate since these terms are negative)
+            function myfilter_female(field, value) {
+                dimAll();
+                var circles = d3.selectAll("circle");
+                circles.filter(function(d) {return d[field] <= value})
+                    .style("opacity","")
+                    .on("mouseover",highlight);
+            }
+        
+        // function for creating a pointer when I mouseover spans
+            function mouseover_spans(d) {
+            var span = d3.select(this)
+            .style("cursor","pointer");}
+
+        
+            
+
+		
+	</script>
+</head>
+<body onload="getData()">
+	<h2 id="title">Candidate Gender and Political Discourse </h2>
+    
+    <h3 id="subtitle">An interactive exploration of word-use differences in tweets (from verified Twitter accounts) about male and female candidates in the 2020 Democratic primary </h3>
+    
+	<div id="key"><p id="wordtype" font-color="white">
+    <button id="showall" onclick=showAll()>Show All Words</button><br /><br />
+    <strong>Click to Filter By Word Type</strong><br /> 
+    </p>
+        
+    <p> <br /><strong>Slide To Highlight Words More Common to One Gender</strong><br />
+    Female  <input type="range" min=-80 max=80 onchange="differences(this.value)"> Male
+     </p>
+    
+    <p id="size"> <br />
+    Each circle represents a word. The size of the circle corresponds to the overall frequency of the word in the entire corpus of tweets.
+        </p>
+    </div>
+    
+	<svg id="canvas" width="1000" height="1000" ><style type="text/css">
+	.st0{fill:none;stroke:#000000;stroke-width:3;stroke-miterlimit:10;}
+	.st1{fill:none;stroke:#000000;stroke-width:4;stroke-miterlimit:10;stroke-dasharray:12;}
+	.st2{fill:none;}
+	.st3{font-family:'MyriadPro-Regular';}
+	.st4{font-size:26px;}
+	.st5{fill:none;stroke:#58595B;stroke-width:2;stroke-miterlimit:10;}
+	.st6{fill:#58595B;}
+	.st7{font-size:30px;}
+	.st8{font-family:'SegoeUI-Italic';}
+	.st9{font-size:16px;}
+	.st10{fill:#A7A9AC;stroke:#000000;stroke-width:0.25;stroke-miterlimit:10;}
+	.st11{font-size:20px;}
+	.st12{fill:none;stroke:#A7A9AC;stroke-width:2;stroke-miterlimit:10;}
+	.st13{fill:#A7A9AC;}
+</style>
+<line class="st0" x1="75" y1="75" x2="75" y2="875"/>
+<line class="st0" x1="75" y1="875" x2="875" y2="875"/>
+<line class="st1" x1="75" y1="875" x2="875" y2="75"/>
+<rect x="76.49" y="920.06" class="st2" width="798.64" height="37.53"/>
+<text transform="matrix(1 0 0 1 163.9433 938.5236)" class="st3 st4">Relative Word Frequency (Tweets about Male Candidates)</text>
+<rect x="9.68" y="81.36" class="st2" width="42.89" height="792.51"/>
+<text transform="matrix(0 -1 1 0 28.1408 802.7159)" class="st3 st4">Relative Word Frequency (Tweets about Female Candidates)</text>
+<line class="st5" x1="63.68" y1="475" x2="89.77" y2="475"/>
+<rect x="37.26" y="458.6" class="st2" width="24.51" height="41.36"/>
+<text transform="matrix(1 0 0 1 37.2554 479.8956)" class="st6 st3 st7">1</text>
+<line class="st2" x1="469.26" y1="864.55" x2="469.26" y2="882.94"/>
+<line class="st5" x1="63.53" y1="75" x2="89.62" y2="75"/>
+<rect x="40.28" y="62.38" class="st2" width="24.51" height="41.36"/>
+<text transform="matrix(1 0 0 1 40.2806 83.6838)" class="st6 st3 st7">5</text>
+<line class="st5" x1="475" y1="888.04" x2="475" y2="861.96"/>
+<rect x="467.38" y="891.34" class="st2" width="24.51" height="41.36"/>
+<text transform="matrix(1 0 0 1 467.383 912.6403)" class="st6 st3 st7">1</text>
+<line class="st5" x1="875" y1="888.04" x2="875" y2="861.96"/>
+<rect x="868.74" y="890.57" class="st2" width="24.51" height="41.36"/>
+<text transform="matrix(1 0 0 1 868.7447 911.8743)" class="st6 st3 st7">5</text>
+<rect x="192.4" y="948.53" class="st2" width="588.26" height="21.45"/>
+<text transform="matrix(1 0 0 1 241.0162 960.376)" class="st8 st9">Relative frequency values measured in word usage per thousand words</text>
+<rect x="83.51" y="163.47" transform="matrix(0.7071 -0.7071 0.7071 0.7071 -72.6662 232.5421)" class="st2" width="321.72" height="81.02"/>
+<text transform="matrix(0.7071 -0.7071 0.7071 0.7071 122.6767 288.469)"><tspan x="0" y="0" class="st10 st3 st11">Relatively more common words for </tspan><tspan x="69.64" y="24" class="st10 st3 st11">female candidates</tspan></text>
+<g>
+	<g>
+		<line class="st12" x1="145.41" y1="123.3" x2="199.26" y2="171.89"/>
+		<g>
+			<path class="st13" d="M136.45,115.21c2.8,5.37,5.63,12.76,6.32,18.51l3.82-9.37l8.93-4.76
+				C149.71,119.51,142.07,117.45,136.45,115.21z"/>
+		</g>
+	</g>
+</g>
+<rect x="653.17" y="682.32" transform="matrix(0.7071 -0.7071 0.7071 0.7071 -271.4246 790.3801)" class="st2" width="330.38" height="81.02"/>
+<text transform="matrix(0.7071 -0.7071 0.7071 0.7071 696.6664 807.3122)"><tspan x="0" y="0" class="st10 st3 st11">Relatively more common words for </tspan><tspan x="77.57" y="24" class="st10 st3 st11">male candidates</tspan></text>
+<g>
+	<g>
+		<line class="st12" x1="895.92" y1="770.24" x2="841.64" y2="722.13"/>
+		<g>
+			<path class="st13" d="M904.95,778.25c-2.85-5.34-5.74-12.71-6.48-18.46l-3.73,9.4l-8.88,4.83
+				C891.65,774.08,899.31,776.06,904.95,778.25z"/>
+		</g>
+	</g>
+</g>
+    </svg>
+    
+
+    <div id="tooltip">
+    <span id="wordname"></span><br />
+    <span id="fvalue"></span><br />
+    <span id="mvalue"></span>
+    </div>
+
+<div id="notes">
+    <p id="notes1"> Notes: Tweets were captured during a roughly 20 day period from February 19, 2020 through March 9, 2020. Tweets about female candidates were tweets that included a reference to Elizabeth Warren or Amy Klobuchar and did NOT include a reference to any male candidate. Tweets about male candidates were any tweets that included a reference to Joe Biden, Bernie Sanders, Pete Buttigieg, Michael Bloomberg, or Tom Steyer, and did NOT include a reference to any female candidate. Tweets were collected from verified Twitter accounts, where verified accounts are authentic accounts from an "person of public interest."  </p>
+    </div>
+
+
+</body>
